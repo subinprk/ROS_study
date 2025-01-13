@@ -8,6 +8,11 @@
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/filters/extract_indices.h>
+
 #include <iostream>       // std::cout
 #include <typeinfo>       // operator typeid
 
@@ -52,9 +57,34 @@ void    sort_PointCloud(pcl::PointCloud<pcl::PointXYZ> &PC){
     }
 }
 
-pcl::PointCloud<pcl::PointXYZ> DownSampling(pcl::PointCloud<pcl::PointXYZ> &pc){
+void    ransac(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud){
+    pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+    pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>),
+                                        inlierPoints(new pcl::PointCloud<pcl::PointXYZ>);
 
-    pcl::PointCloud<pcl::PointXYZ> outPC;
+    //Create the segmetation object
+    pcl::SACSegmentation<pcl::PointXYZ> seg;
+    seg.setModelType(pcl::SACMODEL_PLANE);
+    seg.setMethodType(pcl::SAC_RANSAC);
+    seg.setDistanceThreshold(0.01);
+
+    seg.setInputCloud(input_cloud);
+    seg.segment(*inliers, *coefficients);
+
+    pcl::copyPointCloud<pcl::PointXYZ>(*cloud, *inliers, *inlierPoints);
+    pcl::ExtractIndices<pcl::PointXYZ> extract;
+    extract.setInputCloud(cloud);
+    extract.setIndices(inliers);
+    extract.setNegative(true);
+    extract.filter(*input_cloud);
+    //filter (PCLPointCloud2 &output);
+    return ;
+}
+
+pcl::PointCloud<pcl::PointXYZ>::Ptr DownSampling(pcl::PointCloud<pcl::PointXYZ> &pc){
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr outPC;
 
     pubsub::obsts msg;
     std::vector<pubsub::obst> point_elem;
@@ -72,7 +102,7 @@ pcl::PointCloud<pcl::PointXYZ> DownSampling(pcl::PointCloud<pcl::PointXYZ> &pc){
         if(true)
         {
             bool point_exists = false;
-            for (auto& point : outPC.points) {
+            for (auto& point : (*outPC).points) {
                 if (point.x == pc.points[i].x && point.y == pc.points[i].y && point.z == pc.points[i].z) {
                     point_exists = true;
                     break;
@@ -84,7 +114,7 @@ pcl::PointCloud<pcl::PointXYZ> DownSampling(pcl::PointCloud<pcl::PointXYZ> &pc){
                 pt.y = pc.points[i].y;
                 pt.z = pc.points[i].z;
                 
-                outPC.points.push_back(pc.points[i]);
+                (*outPC).points.push_back(pc.points[i]);
                 point_elem.push_back(pt);
                 std::cout<< "x: "<< pc.points[i].x << " y: " << pc.points[i].y << " z: " << pc.points[i].z << std::endl;
                 count ++;
@@ -108,7 +138,8 @@ void    cloud_cb (const sensor_msgs::PointCloud2 msg){
     roi_cloud = ROI(input_cloud);
 
     sort_PointCloud(roi_cloud);
-    pcl::PointCloud<PointXYZ> tmp = DownSampling(roi_cloud);
+    pcl::PointCloud<PointXYZ>::Ptr tmp = DownSampling(roi_cloud);
+    ransac(tmp);
     
     sensor_msgs::PointCloud2 output;
     pcl::toROSMsg(roi_cloud, output);
