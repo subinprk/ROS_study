@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(pubsub)
+project(subpub)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -8,11 +8,11 @@ project(pubsub)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  message_generation
+  pcl_conversions
   pcl_ros
   roscpp
   sensor_msgs
-  pcl_conversions
-  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -107,13 +107,9 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
  INCLUDE_DIRS include
- LIBRARIES pubsub
- CATKIN_DEPENDS pcl_ros
-                roscpp
-                sensor_msgs
-                pcl_conversions
-                message_generation
- DEPENDS system_lib
+ LIBRARIES subpub
+ CATKIN_DEPENDS message_generation pcl_conversions pcl_ros roscpp sensor_msgs
+#  DEPENDS system_lib
 )
 
 ###########
@@ -129,7 +125,7 @@ include_directories(
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/pubsub.cpp
+#   src/${PROJECT_NAME}/subpub.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -140,7 +136,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/pubsub_node.cpp)
+add_executable(${PROJECT_NAME}_node src/subpub.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -153,9 +149,9 @@ include_directories(
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(${PROJECT_NAME}_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(${PROJECT_NAME}_node
+  ${catkin_LIBRARIES}
+)
 
 #############
 ## Install ##
@@ -204,13 +200,10 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_pubsub.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_subpub.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
-
-add_executable(pubsub src/pubsub.cpp)
-target_link_libraries(pubsub ${catkin_LIBRARIES})

@@ -8,15 +8,10 @@
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/segmentation/sac_segmentation.h>
-#include <pcl/filters/extract_indices.h>
-
 #include <iostream>       // std::cout
 #include <typeinfo>       // operator typeid
 
-#include <pubsub/obsts.h>
+#include <subpub/obsts.h>
 //#include <pubsub/obst.h>
 
 #include <vector>
@@ -36,7 +31,9 @@ pcl::PointCloud<pcl::PointXYZ> ROI(pcl::PointCloud<pcl::PointXYZ> &pc){
     pcl::PointCloud<pcl::PointXYZ> roi;
 
     for (auto& point : pc.points){
-        if (point.x> 0 && point.x < 10 && point.y > -10 && point.y < 10 && pointDist(point) > 2)
+        if (point.x> 0 && point.x < 10 && point.y > -10
+            && point.y < 10 && pointDist(point) > 2
+            && point.z < 2)
             roi.points.push_back(point);
     }
     return roi;
@@ -57,13 +54,13 @@ void    sort_PointCloud(pcl::PointCloud<pcl::PointXYZ> &PC){
     }
 }
 
-void    ransac(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud){
-    pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-    pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>),
-                                        inlierPoints(new pcl::PointCloud<pcl::PointXYZ>);
+<<<<<<< HEAD:src/subpub/src/subpub.cpp
+void ransac(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud) {
+    pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
+    pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr inlierPoints(new pcl::PointCloud<pcl::PointXYZ>);
 
-    //Create the segmetation object
+    // Create the segmentation object
     pcl::SACSegmentation<pcl::PointXYZ> seg;
     seg.setModelType(pcl::SACMODEL_PLANE);
     seg.setMethodType(pcl::SAC_RANSAC);
@@ -72,22 +69,33 @@ void    ransac(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud){
     seg.setInputCloud(input_cloud);
     seg.segment(*inliers, *coefficients);
 
-    pcl::copyPointCloud<pcl::PointXYZ>(*cloud, *inliers, *inlierPoints);
+    if (inliers->indices.empty()) {
+        std::cerr << "No inliers found!" << std::endl;
+        return;
+    }
+
+    // Now copy the inliers from input_cloud directly
+    pcl::copyPointCloud<pcl::PointXYZ>(*input_cloud, *inliers, *inlierPoints);
+
+    // Extract the inliers from the input cloud and store them in a new cloud
     pcl::ExtractIndices<pcl::PointXYZ> extract;
-    extract.setInputCloud(cloud);
+    extract.setInputCloud(input_cloud);
     extract.setIndices(inliers);
-    extract.setNegative(true);
-    extract.filter(*input_cloud);
-    //filter (PCLPointCloud2 &output);
-    return ;
+    extract.setNegative(true);  // Remove the inliers from the input cloud
+    extract.filter(*input_cloud);  // Update the input_cloud with the remaining points
 }
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr DownSampling(pcl::PointCloud<pcl::PointXYZ> &pc){
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr outPC;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr outPC(new pcl::PointCloud<pcl::PointXYZ>());
+=======
+pcl::PointCloud<pcl::PointXYZ> DownSampling(pcl::PointCloud<pcl::PointXYZ> &pc){
 
-    pubsub::obsts msg;
-    std::vector<pubsub::obst> point_elem;
+    pcl::PointCloud<pcl::PointXYZ> outPC;
+>>>>>>> parent of ffbcf80... Update pubsub.cpp:pubsub/src/pubsub.cpp
+
+    subpub::obsts msg;
+    std::vector<subpub::obst> point_elem;
     int count = 0;
 
     for (int i = 0; i < pc.points.size(); i ++){
@@ -102,19 +110,19 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr DownSampling(pcl::PointCloud<pcl::PointXYZ> 
         if(true)
         {
             bool point_exists = false;
-            for (auto& point : (*outPC).points) {
+            for (auto& point : outPC.points) {
                 if (point.x == pc.points[i].x && point.y == pc.points[i].y && point.z == pc.points[i].z) {
                     point_exists = true;
                     break;
                 }
             }
             if (!point_exists) {
-                pubsub::obst pt;
+                subpub::obst pt;
                 pt.x = pc.points[i].x;
                 pt.y = pc.points[i].y;
                 pt.z = pc.points[i].z;
                 
-                (*outPC).points.push_back(pc.points[i]);
+                outPC.points.push_back(pc.points[i]);
                 point_elem.push_back(pt);
                 std::cout<< "x: "<< pc.points[i].x << " y: " << pc.points[i].y << " z: " << pc.points[i].z << std::endl;
                 count ++;
@@ -124,6 +132,8 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr DownSampling(pcl::PointCloud<pcl::PointXYZ> 
     msg.obst_vector = point_elem;
     msg.id = count;
     pub2.publish(msg);
+        std::cout << "==============================" << std::endl;
+
     return outPC;
 }
 
@@ -138,11 +148,16 @@ void    cloud_cb (const sensor_msgs::PointCloud2 msg){
     roi_cloud = ROI(input_cloud);
 
     sort_PointCloud(roi_cloud);
+<<<<<<< HEAD:src/subpub/src/subpub.cpp
     pcl::PointCloud<PointXYZ>::Ptr tmp = DownSampling(roi_cloud);
     ransac(tmp);
+
+=======
+    pcl::PointCloud<PointXYZ> tmp = DownSampling(roi_cloud);
+>>>>>>> parent of ffbcf80... Update pubsub.cpp:pubsub/src/pubsub.cpp
     
     sensor_msgs::PointCloud2 output;
-    pcl::toROSMsg(roi_cloud, output);
+    pcl::toROSMsg((*tmp), output);
     output.header.frame_id = "map";
     output.header.stamp = ros::Time::now();
     pub.publish(output);
@@ -155,6 +170,11 @@ int main(int argc, char **argv){
     ros::Subscriber sub = nh.subscribe ("/lidar3D", 1, cloud_cb);
     
     pub = nh.advertise<sensor_msgs::PointCloud2> ("output", 1);
-    pub2 = nh.advertise<pubsub::obsts> ("custom_msg", 1);
+    pub2 = nh.advertise<subpub::obsts> ("custom_msg", 1);
     ros::spin();
+<<<<<<< HEAD:src/subpub/src/subpub.cpp
+    return 0;
 }
+=======
+}
+>>>>>>> parent of ffbcf80... Update pubsub.cpp:pubsub/src/pubsub.cpp
